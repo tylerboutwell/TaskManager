@@ -1,7 +1,7 @@
-var builder = WebApplication.CreateBuilder(args);
+using Microsoft.EntityFrameworkCore;
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddDbContext<TaskDb>(opt => opt.UseInMemoryDatabase("TaskList"));
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
@@ -14,28 +14,47 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+app.MapGet("/tasks", async (TaskDb db) =>
+    await db.Tasks.ToListAsync());
 
-app.MapGet("/weatherforecast", () =>
+app.MapGet("/tasks/complete", async (TaskDb db) =>
+    await db.Tasks.Where(t => t.IsComplete).ToListAsync());
+
+app.MapGet("tasks/{id}", async (int id, TaskDb db) =>
+    await db.Tasks.FindAsync(id)
+        is Task task ? Results.Ok(task) : Results.NotFound());
+
+app.MapPost("tasks/", async (Task task, TaskDb db) =>
 {
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+    db.Tasks.Add(task);
+    await db.SaveChangesAsync();
+
+    return Results.Created($"/tasks/{task.Id}", task);
+});
+
+app.MapPut("tasks/{id}", async (int id, Task inputTask, TaskDb db) =>
+{
+    var task = await db.Tasks.FindAsync(id);
+
+    if (task is null) return Results.NotFound();
+
+    task.Name = inputTask.Name;
+    task.IsComplete = inputTask.IsComplete;
+
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+});
+
+app.MapDelete("tasks/{id}", async (int id, TaskDb db) =>
+{
+    if (await db.Tasks.FindAsync(id) is Task task)
+    {
+        db.Tasks.Remove(task);
+        await db.SaveChangesAsync();
+        return Results.NoContent();
+    }
+    return Results.NotFound();
+});
+
 
 app.Run();
-
-internal record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
