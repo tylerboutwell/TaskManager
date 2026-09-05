@@ -1,3 +1,4 @@
+using Api;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,38 +26,47 @@ app.Run();
 
 static async Task<IResult> GetAllTasks(TaskDb db)
 {
-    return TypedResults.Ok(await db.Tasks.ToArrayAsync());
+    return TypedResults.Ok(await db.Tasks.Select(x => new TaskDto(x)).ToArrayAsync());
 }
 
 static async Task<IResult> GetCompleteTasks(TaskDb db)
 {
-    return TypedResults.Ok(await db.Tasks.Where(t => t.IsComplete).ToListAsync());
+    return TypedResults.Ok(await db.Tasks.Where(t => t.IsComplete).Select(x => 
+    new TaskDto(x)).ToListAsync());
 }
 
 static async Task<IResult> GetTask(int id, TaskDb db)
 {
     return await db.Tasks.FindAsync(id)
         is Task task
-            ? TypedResults.Ok(task)
+            ? TypedResults.Ok(new TaskDto(task))
             : TypedResults.NotFound();
 }
 
-static async Task<IResult> CreateTask(Task task, TaskDb db)
+static async Task<IResult> CreateTask(TaskDto taskDto, TaskDb db)
 {
+    var task = new Task
+    {
+        IsComplete = taskDto.IsComplete,
+        Name = taskDto.Name
+    };
+
     db.Tasks.Add(task);
     await db.SaveChangesAsync();
 
-    return TypedResults.Created($"/tasks/{task.Id}", task);
+    taskDto = new TaskDto(task);
+
+    return TypedResults.Created($"/tasks/{task.Id}", taskDto);
 }
 
-static async Task<IResult> UpdateTask(int id, Task inputTask, TaskDb db)
+static async Task<IResult> UpdateTask(int id, TaskDto taskDto, TaskDb db)
 {
     var task = await db.Tasks.FindAsync(id);
 
     if (task is null) return TypedResults.NotFound();
 
-    task.Name = inputTask.Name;
-    task.IsComplete = inputTask.IsComplete;
+    task.Name = taskDto.Name;
+    task.IsComplete = taskDto.IsComplete;
 
     await db.SaveChangesAsync();
 
