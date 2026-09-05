@@ -6,25 +6,24 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+var tasks = app.MapGroup("/tasks");
 
-app.MapGet("/tasks", async (TaskDb db) =>
+tasks.MapGet("/", async (TaskDb db) =>
     await db.Tasks.ToListAsync());
 
-app.MapGet("/tasks/complete", async (TaskDb db) =>
+tasks.MapGet("/complete", async (TaskDb db) =>
     await db.Tasks.Where(t => t.IsComplete).ToListAsync());
 
-app.MapGet("tasks/{id}", async (int id, TaskDb db) =>
+tasks.MapGet("/{id}", async (int id, TaskDb db) =>
     await db.Tasks.FindAsync(id)
         is Task task ? Results.Ok(task) : Results.NotFound());
 
-app.MapPost("tasks/", async (Task task, TaskDb db) =>
+tasks.MapPost("/", async (Task task, TaskDb db) =>
 {
     db.Tasks.Add(task);
     await db.SaveChangesAsync();
@@ -32,7 +31,7 @@ app.MapPost("tasks/", async (Task task, TaskDb db) =>
     return Results.Created($"/tasks/{task.Id}", task);
 });
 
-app.MapPut("tasks/{id}", async (int id, Task inputTask, TaskDb db) =>
+tasks.MapPut("/{id}", async (int id, Task inputTask, TaskDb db) =>
 {
     var task = await db.Tasks.FindAsync(id);
 
@@ -45,7 +44,7 @@ app.MapPut("tasks/{id}", async (int id, Task inputTask, TaskDb db) =>
     return Results.NoContent();
 });
 
-app.MapPatch("/todoitems/{id}", async (int id, TaskPatchDto inputTask, TaskDb db) =>
+tasks.MapPatch("/{id}", async (int id, TaskPatchDto inputTask, TaskDb db) =>
 {
     var task = await db.Tasks.FindAsync(id);
 
@@ -59,7 +58,7 @@ app.MapPatch("/todoitems/{id}", async (int id, TaskPatchDto inputTask, TaskDb db
     return Results.NoContent();
 });
 
-app.MapDelete("tasks/{id}", async (int id, TaskDb db) =>
+tasks.MapDelete("/{id}", async (int id, TaskDb db) =>
 {
     if (await db.Tasks.FindAsync(id) is Task task)
     {
