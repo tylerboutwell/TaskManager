@@ -13,61 +13,78 @@ if (app.Environment.IsDevelopment())
 
 var tasks = app.MapGroup("/tasks");
 
-tasks.MapGet("/", async (TaskDb db) =>
-    await db.Tasks.ToListAsync());
+tasks.MapGet("/", GetAllTasks);
+tasks.MapGet("/complete", GetCompleteTasks);
+tasks.MapGet("/{id}", GetTask);
+tasks.MapPost("/", CreateTask);
+tasks.MapPut("/{id}", UpdateTask);
+tasks.MapPatch("/{id}", PatchTask);
+tasks.MapDelete("/{id}", DeleteTask);
 
-tasks.MapGet("/complete", async (TaskDb db) =>
-    await db.Tasks.Where(t => t.IsComplete).ToListAsync());
+app.Run();
 
-tasks.MapGet("/{id}", async (int id, TaskDb db) =>
-    await db.Tasks.FindAsync(id)
-        is Task task ? Results.Ok(task) : Results.NotFound());
+static async Task<IResult> GetAllTasks(TaskDb db)
+{
+    return TypedResults.Ok(await db.Tasks.ToArrayAsync());
+}
 
-tasks.MapPost("/", async (Task task, TaskDb db) =>
+static async Task<IResult> GetCompleteTasks(TaskDb db)
+{
+    return TypedResults.Ok(await db.Tasks.Where(t => t.IsComplete).ToListAsync());
+}
+
+static async Task<IResult> GetTask(int id, TaskDb db)
+{
+    return await db.Tasks.FindAsync(id)
+        is Task task
+            ? TypedResults.Ok(task)
+            : TypedResults.NotFound();
+}
+
+static async Task<IResult> CreateTask(Task task, TaskDb db)
 {
     db.Tasks.Add(task);
     await db.SaveChangesAsync();
 
-    return Results.Created($"/tasks/{task.Id}", task);
-});
+    return TypedResults.Created($"/tasks/{task.Id}", task);
+}
 
-tasks.MapPut("/{id}", async (int id, Task inputTask, TaskDb db) =>
+static async Task<IResult> UpdateTask(int id, Task inputTask, TaskDb db)
 {
     var task = await db.Tasks.FindAsync(id);
 
-    if (task is null) return Results.NotFound();
+    if (task is null) return TypedResults.NotFound();
 
     task.Name = inputTask.Name;
     task.IsComplete = inputTask.IsComplete;
 
     await db.SaveChangesAsync();
-    return Results.NoContent();
-});
 
-tasks.MapPatch("/{id}", async (int id, TaskPatchDto inputTask, TaskDb db) =>
+    return TypedResults.NoContent();
+}
+
+static async Task<IResult> PatchTask(int id, TaskPatchDto inputTask, TaskDb db)
 {
     var task = await db.Tasks.FindAsync(id);
 
-    if (task is null) return Results.NotFound();
+    if (task is null) return TypedResults.NotFound();
 
     if (inputTask.Name is not null) task.Name = inputTask.Name;
     if (inputTask.IsComplete is not null) task.IsComplete = inputTask.IsComplete.Value;
 
     await db.SaveChangesAsync();
 
-    return Results.NoContent();
-});
+    return TypedResults.NoContent();
+}
 
-tasks.MapDelete("/{id}", async (int id, TaskDb db) =>
+static async Task<IResult> DeleteTask(int id, TaskDb db)
 {
     if (await db.Tasks.FindAsync(id) is Task task)
     {
         db.Tasks.Remove(task);
         await db.SaveChangesAsync();
-        return Results.NoContent();
+        return TypedResults.NoContent();
     }
-    return Results.NotFound();
-});
 
-
-app.Run();
+    return TypedResults.NotFound();
+}

@@ -1,4 +1,4 @@
-@Api_HostAddress = http://localhost:5000
+@Api_HostAddress = http://localhost:5250
 
 
 ###
@@ -12,7 +12,7 @@ Content-Type: application/json
 }
 
 ###
-PATCH {{Api_HostAddress}}/todoitems/1
+PATCH {{Api_HostAddress}}/tasks/1
 Content-Type: application/json
 
 {
