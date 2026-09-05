@@ -45,6 +45,20 @@ app.MapPut("tasks/{id}", async (int id, Task inputTask, TaskDb db) =>
     return Results.NoContent();
 });
 
+app.MapPatch("/todoitems/{id}", async (int id, TaskPatchDto inputTask, TaskDb db) =>
+{
+    var task = await db.Tasks.FindAsync(id);
+
+    if (task is null) return Results.NotFound();
+
+    if (inputTask.Name is not null) task.Name = inputTask.Name;
+    if (inputTask.IsComplete is not null) task.IsComplete = inputTask.IsComplete.Value;
+
+    await db.SaveChangesAsync();
+
+    return Results.NoContent();
+});
+
 app.MapDelete("tasks/{id}", async (int id, TaskDb db) =>
 {
     if (await db.Tasks.FindAsync(id) is Task task)
